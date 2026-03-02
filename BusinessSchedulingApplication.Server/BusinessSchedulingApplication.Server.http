@@ -1,0 +1,6 @@
+@BusinessSchedulingApplication.Server_HostAddress = http://localhost:5088
+
+GET {{BusinessSchedulingApplication.Server_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

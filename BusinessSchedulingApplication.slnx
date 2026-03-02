@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="businessschedulingapplication.client/businessschedulingapplication.client.esproj">
+    <Build />
+    <Deploy />
+  </Project>
+  <Project Path="BusinessSchedulingApplication.Server/BusinessSchedulingApplication.Server.csproj" />
+</Solution>
