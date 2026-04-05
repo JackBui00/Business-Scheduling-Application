@@ -21,13 +21,17 @@ public partial class BusinessSchedulingApplicationContext : DbContext
 
     public virtual DbSet<Customer> Customers { get; set; }
 
+    public virtual DbSet<CustomerOwner> CustomerOwners { get; set; }
+
+    public virtual DbSet<BusinessHour> BusinessHours { get; set; }
+
     public virtual DbSet<SmsConversation> SmsConversations { get; set; }
 
     public virtual DbSet<SmsMessage> SmsMessages { get; set; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-#warning To protect potentially sensitive information in your connection string, you should move it out of source code. You can avoid scaffolding the connection string by using the Name= syntax to read it from configuration - see https://go.microsoft.com/fwlink/?linkid=2131148. For more guidance on storing connection strings, see https://go.microsoft.com/fwlink/?LinkId=723263.
-        => optionsBuilder.UseSqlServer("Server=tcp:businessschedulingapplication.database.windows.net,1433;Initial Catalog=BusinessSchedulingApplication;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;Authentication=Active Directory Default;");
+    {
+    }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -44,6 +48,7 @@ public partial class BusinessSchedulingApplicationContext : DbContext
             entity.Property(e => e.IsActive).HasDefaultValue(true);
             entity.Property(e => e.PasswordHash).HasMaxLength(500);
             entity.Property(e => e.RoleName).HasMaxLength(50);
+            entity.Property(e => e.TimeZoneId).HasMaxLength(100).HasDefaultValue("UTC");
             entity.Property(e => e.UpdatedAtUtc).HasDefaultValueSql("(sysutcdatetime())");
         });
 
@@ -65,6 +70,45 @@ public partial class BusinessSchedulingApplicationContext : DbContext
             entity.HasOne(d => d.Customer).WithMany(p => p.Appointments)
                 .HasForeignKey(d => d.CustomerId)
                 .OnDelete(DeleteBehavior.ClientSetNull);
+        });
+
+        modelBuilder.Entity<BusinessHour>(entity =>
+        {
+            entity.HasIndex(e => new { e.OwnerUserId, e.DayOfWeek }, "IX_BusinessHours_OwnerUserId_DayOfWeek").IsUnique();
+
+            entity.HasIndex(e => e.OwnerUserId, "IX_BusinessHours_OwnerUserId");
+
+            entity.Property(e => e.BusinessHourId).ValueGeneratedNever();
+            entity.Property(e => e.CreatedAtUtc).HasDefaultValueSql("(sysutcdatetime())");
+            entity.Property(e => e.DayOfWeek);
+            entity.Property(e => e.ClosesAtUtc).HasColumnType("time");
+            entity.Property(e => e.OpensAtUtc).HasColumnType("time");
+            entity.Property(e => e.UpdatedAtUtc).HasDefaultValueSql("(sysutcdatetime())");
+
+            entity.HasOne(d => d.OwnerUser).WithMany(p => p.BusinessHours)
+                .HasForeignKey(d => d.OwnerUserId)
+                .OnDelete(DeleteBehavior.ClientSetNull);
+        });
+
+        modelBuilder.Entity<CustomerOwner>(entity =>
+        {
+            entity.HasIndex(e => e.CustomerId, "IX_CustomerOwners_CustomerId");
+
+            entity.HasIndex(e => e.OwnerUserId, "IX_CustomerOwners_OwnerUserId");
+
+            entity.HasIndex(e => new { e.CustomerId, e.OwnerUserId }, "IX_CustomerOwners_CustomerId_OwnerUserId").IsUnique();
+
+            entity.Property(e => e.CustomerOwnerId).ValueGeneratedNever();
+            entity.Property(e => e.CreatedAtUtc).HasDefaultValueSql("(sysutcdatetime())");
+            entity.Property(e => e.UpdatedAtUtc).HasDefaultValueSql("(sysutcdatetime())");
+
+            entity.HasOne(d => d.Customer).WithMany(p => p.CustomerOwners)
+                .HasForeignKey(d => d.CustomerId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(d => d.OwnerUser).WithMany(p => p.CustomerOwnerships)
+                .HasForeignKey(d => d.OwnerUserId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<Customer>(entity =>
