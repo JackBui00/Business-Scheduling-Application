@@ -1,11 +1,14 @@
 using BusinessSchedulingApplication.Server.DTOs;
 using BusinessSchedulingApplication.Server.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 
 namespace BusinessSchedulingApplication.Server.Controllers;
 
 [ApiController]
+[Authorize]
 [Route("api/[controller]")]
 public class AppointmentsController : ControllerBase
 {
@@ -19,24 +22,62 @@ public class AppointmentsController : ControllerBase
     [HttpGet]
     public async Task<ActionResult<IEnumerable<AppointmentDto>>> GetAppointments()
     {
+        var currentUserId = GetCurrentUserId();
+        var ownedCustomerIds = _context.CustomerOwners
+            .AsNoTracking()
+            .Where(customerOwner => customerOwner.OwnerUserId == currentUserId)
+            .Select(customerOwner => customerOwner.CustomerId);
+
         var appointments = await _context.Appointments
             .AsNoTracking()
-            .Select(appointment => MapToDto(appointment))
+            .Include(appointment => appointment.Customer)
+            .Where(appointment => ownedCustomerIds.Contains(appointment.CustomerId))
             .ToListAsync();
 
-        return Ok(appointments);
+        return Ok(appointments.Select(MapToDto));
     }
 
     [HttpGet("{id:guid}")]
     public async Task<ActionResult<AppointmentDto>> GetAppointment(Guid id)
     {
-        var entity = await _context.Appointments.FindAsync(id);
+        var currentUserId = GetCurrentUserId();
+        var ownedCustomerIds = _context.CustomerOwners
+            .AsNoTracking()
+            .Where(customerOwner => customerOwner.OwnerUserId == currentUserId)
+            .Select(customerOwner => customerOwner.CustomerId);
+
+        var entity = await _context.Appointments
+            .AsNoTracking()
+            .Include(appointment => appointment.Customer)
+            .FirstOrDefaultAsync(appointment => appointment.AppointmentId == id && ownedCustomerIds.Contains(appointment.CustomerId));
         return entity is null ? NotFound() : Ok(MapToDto(entity));
     }
 
     [HttpPost]
     public async Task<ActionResult<AppointmentDto>> CreateAppointment(CreateAppointmentDto dto)
     {
+        var currentUserId = GetCurrentUserId();
+        var currentUser = await _context.AppUsers.AsNoTracking().FirstAsync(user => user.UserId == currentUserId);
+        var ownedCustomerIds = _context.CustomerOwners
+            .AsNoTracking()
+            .Where(customerOwner => customerOwner.OwnerUserId == currentUserId)
+            .Select(customerOwner => customerOwner.CustomerId);
+
+        var ownedCustomer = await _context.Customers
+            .AsNoTracking()
+            .FirstOrDefaultAsync(customer => customer.CustomerId == dto.CustomerId && ownedCustomerIds.Contains(customer.CustomerId));
+
+        if (ownedCustomer is null)
+        {
+            return BadRequest(new { message = "Selected customer is not owned by the current business owner." });
+        }
+
+        var hoursCheck = await IsWithinBusinessHoursAsync(currentUserId, currentUser.TimeZoneId, dto.ScheduledAtUtc, dto.DurationMinutes);
+        if (!hoursCheck.IsAllowed)
+        {
+            return BadRequest(new { message = hoursCheck.Message });
+        }
+
         var entity = new Appointment
         {
             AppointmentId = dto.AppointmentId ?? Guid.NewGuid(),
@@ -52,6 +93,8 @@ public class AppointmentsController : ControllerBase
             UpdatedAtUtc = DateTime.UtcNow
         };
 
+        entity.Customer = ownedCustomer;
+
         _context.Appointments.Add(entity);
         await _context.SaveChangesAsync();
 
@@ -61,10 +104,34 @@ public class AppointmentsController : ControllerBase
     [HttpPut("{id:guid}")]
     public async Task<IActionResult> UpdateAppointment(Guid id, UpdateAppointmentDto dto)
     {
-        var entity = await _context.Appointments.FindAsync(id);
+        var currentUserId = GetCurrentUserId();
+        var currentUser = await _context.AppUsers.AsNoTracking().FirstAsync(user => user.UserId == currentUserId);
+        var ownedCustomerIds = _context.CustomerOwners
+            .AsNoTracking()
+            .Where(customerOwner => customerOwner.OwnerUserId == currentUserId)
+            .Select(customerOwner => customerOwner.CustomerId);
+
+        var entity = await _context.Appointments
+            .Include(appointment => appointment.Customer)
+            .FirstOrDefaultAsync(appointment => appointment.AppointmentId == id && ownedCustomerIds.Contains(appointment.CustomerId));
         if (entity is null)
         {
             return NotFound();
+        }
+
+        var ownedCustomer = await _context.Customers
+            .AsNoTracking()
+            .FirstOrDefaultAsync(customer => customer.CustomerId == dto.CustomerId && ownedCustomerIds.Contains(customer.CustomerId));
+
+        if (ownedCustomer is null)
+        {
+            return BadRequest(new { message = "Selected customer is not owned by the current business owner." });
+        }
+
+        var hoursCheck = await IsWithinBusinessHoursAsync(currentUserId, currentUser.TimeZoneId, dto.ScheduledAtUtc, dto.DurationMinutes);
+        if (!hoursCheck.IsAllowed)
+        {
+            return BadRequest(new { message = hoursCheck.Message });
         }
 
         entity.CustomerId = dto.CustomerId;
@@ -75,6 +142,7 @@ public class AppointmentsController : ControllerBase
         entity.Notes = dto.Notes;
         entity.CreatedVia = dto.CreatedVia;
         entity.CreatedByUserId = dto.CreatedByUserId;
+        entity.Customer = ownedCustomer;
         entity.UpdatedAtUtc = DateTime.UtcNow;
 
         await _context.SaveChangesAsync();
@@ -84,7 +152,15 @@ public class AppointmentsController : ControllerBase
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> DeleteAppointment(Guid id)
     {
-        var entity = await _context.Appointments.FindAsync(id);
+        var currentUserId = GetCurrentUserId();
+        var ownedCustomerIds = _context.CustomerOwners
+            .AsNoTracking()
+            .Where(customerOwner => customerOwner.OwnerUserId == currentUserId)
+            .Select(customerOwner => customerOwner.CustomerId);
+
+        var entity = await _context.Appointments
+            .Include(appointment => appointment.Customer)
+            .FirstOrDefaultAsync(appointment => appointment.AppointmentId == id && ownedCustomerIds.Contains(appointment.CustomerId));
         if (entity is null)
         {
             return NotFound();
@@ -99,6 +175,7 @@ public class AppointmentsController : ControllerBase
     {
         AppointmentId = appointment.AppointmentId,
         CustomerId = appointment.CustomerId,
+        CustomerName = appointment.Customer.FullName,
         ScheduledAtUtc = appointment.ScheduledAtUtc,
         DurationMinutes = appointment.DurationMinutes,
         ServiceName = appointment.ServiceName,
@@ -109,4 +186,111 @@ public class AppointmentsController : ControllerBase
         CreatedAtUtc = appointment.CreatedAtUtc,
         UpdatedAtUtc = appointment.UpdatedAtUtc
     };
+
+    private async Task<(bool IsAllowed, string Message)> IsWithinBusinessHoursAsync(
+        Guid ownerUserId,
+        string timeZoneId,
+        DateTime scheduledAtUtc,
+        int durationMinutes)
+    {
+        var rows = await _context.BusinessHours
+            .AsNoTracking()
+            .Where(row => row.OwnerUserId == ownerUserId)
+            .ToListAsync();
+
+        if (rows.Count == 0)
+        {
+            return (true, string.Empty);
+        }
+
+        var timeZone = ResolveTimeZoneInfo(timeZoneId);
+        if (timeZone is null)
+        {
+            return (false, "Business hours time zone is invalid.");
+        }
+
+        var localScheduledAt = TimeZoneInfo.ConvertTimeFromUtc(scheduledAtUtc.ToUniversalTime(), timeZone);
+        var localEndAt = localScheduledAt.AddMinutes(durationMinutes);
+        var start = TimeOnly.FromDateTime(localScheduledAt);
+        var end = TimeOnly.FromDateTime(localEndAt);
+        var dayOfWeek = (int)localScheduledAt.DayOfWeek;
+
+        var row = rows.FirstOrDefault(item => item.DayOfWeek == dayOfWeek);
+        if (row is null || !row.IsOpen || row.OpensAtUtc is null || row.ClosesAtUtc is null)
+        {
+            return (false, "That appointment time is outside the configured business hours.");
+        }
+
+        if (end <= start)
+        {
+            return (false, "Appointments must end after they start.");
+        }
+
+        if (start < row.OpensAtUtc || end > row.ClosesAtUtc)
+        {
+            return (false, "That appointment time is outside the configured business hours.");
+        }
+
+        return (true, string.Empty);
+    }
+
+    private static TimeZoneInfo? ResolveTimeZoneInfo(string? timeZoneId)
+    {
+        if (string.IsNullOrWhiteSpace(timeZoneId))
+        {
+            return null;
+        }
+
+        try
+        {
+            return TimeZoneInfo.FindSystemTimeZoneById(timeZoneId);
+        }
+        catch (TimeZoneNotFoundException)
+        {
+        }
+        catch (InvalidTimeZoneException)
+        {
+        }
+
+        if (TimeZoneInfo.TryConvertIanaIdToWindowsId(timeZoneId, out var windowsId))
+        {
+            try
+            {
+                return TimeZoneInfo.FindSystemTimeZoneById(windowsId);
+            }
+            catch (TimeZoneNotFoundException)
+            {
+            }
+            catch (InvalidTimeZoneException)
+            {
+            }
+        }
+
+        if (TimeZoneInfo.TryConvertWindowsIdToIanaId(timeZoneId, out var ianaId))
+        {
+            try
+            {
+                return TimeZoneInfo.FindSystemTimeZoneById(ianaId);
+            }
+            catch (TimeZoneNotFoundException)
+            {
+            }
+            catch (InvalidTimeZoneException)
+            {
+            }
+        }
+
+        return null;
+    }
+
+    private Guid GetCurrentUserId()
+    {
+        var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!Guid.TryParse(userIdClaim, out var userId))
+        {
+            throw new InvalidOperationException("Authenticated user id is missing or invalid.");
+        }
+
+        return userId;
+    }
 }

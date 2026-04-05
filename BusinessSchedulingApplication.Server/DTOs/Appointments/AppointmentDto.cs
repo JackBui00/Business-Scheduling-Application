@@ -6,6 +6,8 @@ public sealed class AppointmentDto
 
     public Guid CustomerId { get; set; }
 
+    public string CustomerName { get; set; } = null!;
+
     public DateTime ScheduledAtUtc { get; set; }
 
     public int DurationMinutes { get; set; }

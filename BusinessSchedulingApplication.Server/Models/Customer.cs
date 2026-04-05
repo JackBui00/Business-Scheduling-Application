@@ -19,6 +19,8 @@ public partial class Customer
 
     public DateTime UpdatedAtUtc { get; set; }
 
+    public virtual ICollection<CustomerOwner> CustomerOwners { get; set; } = new List<CustomerOwner>();
+
     public virtual ICollection<Appointment> Appointments { get; set; } = new List<Appointment>();
 
     public virtual SmsConversation? SmsConversation { get; set; }

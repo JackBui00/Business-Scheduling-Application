@@ -1,11 +1,13 @@
 using BusinessSchedulingApplication.Server.DTOs;
 using BusinessSchedulingApplication.Server.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 namespace BusinessSchedulingApplication.Server.Controllers;
 
 [ApiController]
+[Authorize]
 [Route("api/[controller]")]
 public class AppUsersController : ControllerBase
 {
@@ -21,10 +23,9 @@ public class AppUsersController : ControllerBase
     {
         var users = await _context.AppUsers
             .AsNoTracking()
-            .Select(user => MapToDto(user))
             .ToListAsync();
 
-        return Ok(users);
+        return Ok(users.Select(MapToDto));
     }
 
     [HttpGet("{id:guid}")]

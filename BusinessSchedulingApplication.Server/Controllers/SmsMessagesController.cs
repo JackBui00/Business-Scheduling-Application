@@ -1,11 +1,13 @@
 using BusinessSchedulingApplication.Server.DTOs;
 using BusinessSchedulingApplication.Server.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 namespace BusinessSchedulingApplication.Server.Controllers;
 
 [ApiController]
+[Authorize]
 [Route("api/[controller]")]
 public class SmsMessagesController : ControllerBase
 {
@@ -21,10 +23,9 @@ public class SmsMessagesController : ControllerBase
     {
         var messages = await _context.SmsMessages
             .AsNoTracking()
-            .Select(message => MapToDto(message))
             .ToListAsync();
 
-        return Ok(messages);
+        return Ok(messages.Select(MapToDto));
     }
 
     [HttpGet("{id:guid}")]
