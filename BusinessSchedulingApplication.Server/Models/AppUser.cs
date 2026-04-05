@@ -19,6 +19,10 @@ public partial class AppUser
 
     public string TimeZoneId { get; set; } = "UTC";
 
+    public string? BusinessDescription { get; set; }
+
+    public string? BotName { get; set; }
+
     public DateTime? LastLoginAtUtc { get; set; }
 
     public DateTime CreatedAtUtc { get; set; }
@@ -27,7 +31,7 @@ public partial class AppUser
 
     public virtual ICollection<Appointment> Appointments { get; set; } = new List<Appointment>();
 
-    public virtual ICollection<CustomerOwner> CustomerOwnerships { get; set; } = new List<CustomerOwner>();
+    public virtual ICollection<Customer> Customers { get; set; } = new List<Customer>();
 
     public virtual ICollection<BusinessHour> BusinessHours { get; set; } = new List<BusinessHour>();
 }

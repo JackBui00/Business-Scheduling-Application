@@ -1,12 +1,20 @@
 using BusinessSchedulingApplication.Server.Models;
+using BusinessSchedulingApplication.Server.Options;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
+if (builder.Environment.IsDevelopment())
+{
+    builder.Configuration.AddJsonFile("appsettings.Secrets.json", optional: true, reloadOnChange: true);
+}
+
 // Add services to the container.
 
 builder.Services.AddControllers();
+builder.Services.AddHttpClient();
+builder.Services.Configure<TwilioOptions>(builder.Configuration.GetSection("Twilio"));
 builder.Services.AddDbContext<BusinessSchedulingApplicationContext>(options =>
 {
     var connectionString = builder.Configuration.GetConnectionString("BusinessSchedulingApplicationContext")

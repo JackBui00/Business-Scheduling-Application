@@ -45,6 +45,8 @@ public class AppUsersController : ControllerBase
             PasswordHash = dto.PasswordHash,
             DisplayName = dto.DisplayName,
             RoleName = dto.RoleName,
+            BusinessDescription = dto.BusinessDescription,
+            BotName = dto.BotName,
             IsActive = dto.IsActive,
             LastLoginAtUtc = dto.LastLoginAtUtc,
             CreatedAtUtc = DateTime.UtcNow,
@@ -70,6 +72,8 @@ public class AppUsersController : ControllerBase
         entity.PasswordHash = dto.PasswordHash;
         entity.DisplayName = dto.DisplayName;
         entity.RoleName = dto.RoleName;
+        entity.BusinessDescription = dto.BusinessDescription;
+        entity.BotName = dto.BotName;
         entity.IsActive = dto.IsActive;
         entity.LastLoginAtUtc = dto.LastLoginAtUtc;
         entity.UpdatedAtUtc = DateTime.UtcNow;
@@ -98,6 +102,8 @@ public class AppUsersController : ControllerBase
         Email = user.Email,
         DisplayName = user.DisplayName,
         RoleName = user.RoleName,
+        BusinessDescription = user.BusinessDescription,
+        BotName = user.BotName,
         IsActive = user.IsActive,
         LastLoginAtUtc = user.LastLoginAtUtc,
         CreatedAtUtc = user.CreatedAtUtc,

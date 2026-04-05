@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace BusinessSchedulingApplication.Server.Migrations
 {
     /// <inheritdoc />
-    public partial class AddCustomerOwnerUserId : Migration
+    public partial class InitialCreate : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -21,6 +21,7 @@ namespace BusinessSchedulingApplication.Server.Migrations
                     DisplayName = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
                     RoleName = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
                     IsActive = table.Column<bool>(type: "bit", nullable: false, defaultValue: true),
+                    TimeZoneId = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false, defaultValue: "UTC"),
                     LastLoginAtUtc = table.Column<DateTime>(type: "datetime2", nullable: true),
                     CreatedAtUtc = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "(sysutcdatetime())"),
                     UpdatedAtUtc = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "(sysutcdatetime())")
@@ -28,6 +29,29 @@ namespace BusinessSchedulingApplication.Server.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_AppUsers", x => x.UserId);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "BusinessHours",
+                columns: table => new
+                {
+                    BusinessHourId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    OwnerUserId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    DayOfWeek = table.Column<int>(type: "int", nullable: false),
+                    IsOpen = table.Column<bool>(type: "bit", nullable: false),
+                    OpensAtUtc = table.Column<TimeOnly>(type: "time", nullable: true),
+                    ClosesAtUtc = table.Column<TimeOnly>(type: "time", nullable: true),
+                    CreatedAtUtc = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "(sysutcdatetime())"),
+                    UpdatedAtUtc = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "(sysutcdatetime())")
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_BusinessHours", x => x.BusinessHourId);
+                    table.ForeignKey(
+                        name: "FK_BusinessHours_AppUsers_OwnerUserId",
+                        column: x => x.OwnerUserId,
+                        principalTable: "AppUsers",
+                        principalColumn: "UserId");
                 });
 
             migrationBuilder.CreateTable(
@@ -150,6 +174,17 @@ namespace BusinessSchedulingApplication.Server.Migrations
                 unique: true);
 
             migrationBuilder.CreateIndex(
+                name: "IX_BusinessHours_OwnerUserId",
+                table: "BusinessHours",
+                column: "OwnerUserId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_BusinessHours_OwnerUserId_DayOfWeek",
+                table: "BusinessHours",
+                columns: new[] { "OwnerUserId", "DayOfWeek" },
+                unique: true);
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Customers_FullName",
                 table: "Customers",
                 column: "FullName");
@@ -160,9 +195,9 @@ namespace BusinessSchedulingApplication.Server.Migrations
                 column: "OwnerUserId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Customers_PhoneNumber",
+                name: "IX_Customers_OwnerUserId_PhoneNumber",
                 table: "Customers",
-                column: "PhoneNumber",
+                columns: new[] { "OwnerUserId", "PhoneNumber" },
                 unique: true);
 
             migrationBuilder.CreateIndex(
@@ -187,6 +222,9 @@ namespace BusinessSchedulingApplication.Server.Migrations
         {
             migrationBuilder.DropTable(
                 name: "Appointments");
+
+            migrationBuilder.DropTable(
+                name: "BusinessHours");
 
             migrationBuilder.DropTable(
                 name: "SmsMessages");

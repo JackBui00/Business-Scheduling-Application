@@ -44,6 +44,8 @@ public class AuthController : ControllerBase
             RoleName = "Owner",
             IsActive = true,
             TimeZoneId = NormalizeTimeZoneId(request.TimeZoneId),
+            BusinessDescription = null,
+            BotName = null,
             CreatedAtUtc = now,
             UpdatedAtUtc = now
         };
@@ -104,6 +106,30 @@ public class AuthController : ControllerBase
     }
 
     [Authorize]
+    [HttpPut("me")]
+    public async Task<ActionResult<AuthSessionDto>> UpdateMe(UpdateBusinessProfileDto dto)
+    {
+        var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!Guid.TryParse(userIdClaim, out var userId))
+        {
+            return Unauthorized();
+        }
+
+        var user = await _context.AppUsers.FirstOrDefaultAsync(u => u.UserId == userId);
+        if (user is null)
+        {
+            return Unauthorized();
+        }
+
+        user.BusinessDescription = string.IsNullOrWhiteSpace(dto.BusinessDescription) ? null : dto.BusinessDescription.Trim();
+        user.BotName = string.IsNullOrWhiteSpace(dto.BotName) ? null : dto.BotName.Trim();
+        user.UpdatedAtUtc = DateTime.UtcNow;
+
+        await _context.SaveChangesAsync();
+        return Ok(ToSession(user));
+    }
+
+    [Authorize]
     [HttpPost("signout")]
     public async Task<IActionResult> SignOutCurrentUser()
     {
@@ -147,6 +173,8 @@ public class AuthController : ControllerBase
         Email = user.Email,
         DisplayName = user.DisplayName,
         RoleName = user.RoleName,
+        BusinessDescription = user.BusinessDescription,
+        BotName = user.BotName,
         IsActive = user.IsActive,
         LastLoginAtUtc = user.LastLoginAtUtc,
         CreatedAtUtc = user.CreatedAtUtc,

@@ -671,12 +671,14 @@
 }
 
 .dashboard-tabs {
-  display: inline-flex;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0.4rem;
   padding: 0.35rem;
   border: 1px solid rgba(245, 240, 232, 0.12);
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.03);
+  width: min(100%, 34rem);
 }
 
 .dashboard-tabs-top {
@@ -684,12 +686,18 @@
 }
 
 .dashboard-tab {
+  width: 100%;
   border: 0;
   border-radius: 999px;
   background: transparent;
   color: rgba(245, 240, 232, 0.72);
-  padding: 0.7rem 1rem;
+  padding: 0.7rem 1.15rem;
   font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .dashboard-tab.active {
@@ -828,6 +836,245 @@
   grid-template-columns: minmax(0, 1.35fr) minmax(300px, 0.65fr);
   gap: 1rem;
   align-items: start;
+}
+
+.messages-summary {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.messages-workspace {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.9fr) minmax(0, 1.4fr);
+  gap: 1rem;
+  align-items: start;
+}
+
+.messages-sidebar,
+.messages-thread {
+  min-width: 0;
+}
+
+.messages-sidebar {
+  display: grid;
+  gap: 1rem;
+}
+
+.messages-new-thread {
+  display: grid;
+  gap: 0.75rem;
+  padding: 1rem;
+  border: 1px solid rgba(245, 240, 232, 0.1);
+  border-radius: 1.1rem;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.messages-new-thread-header {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.messages-new-thread-header h4 {
+  margin: 0;
+  color: #fff7ef;
+  font-size: 1rem;
+  letter-spacing: -0.02em;
+}
+
+.messages-new-thread-empty {
+  display: grid;
+  gap: 0.45rem;
+  color: rgba(245, 240, 232, 0.76);
+  font-size: 0.95rem;
+}
+
+.messages-sidebar-header h3,
+.messages-thread-header h3 {
+  margin: 0.35rem 0 0;
+  color: #fff7ef;
+  font-size: 1.45rem;
+  letter-spacing: -0.03em;
+}
+
+.messages-sidebar-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.messages-new-button {
+  white-space: nowrap;
+  align-self: flex-start;
+}
+
+.messages-new-thread-close {
+  border: 0;
+  background: transparent;
+  color: rgba(245, 240, 232, 0.72);
+  padding: 0;
+  font-weight: 700;
+}
+
+.messages-new-thread-close:hover {
+  color: #fff7ef;
+}
+
+.messages-list {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.message-thread-item {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.95rem;
+  border: 1px solid rgba(245, 240, 232, 0.1);
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, 0.03);
+  color: inherit;
+  text-align: left;
+}
+
+.message-thread-item.active {
+  border-color: rgba(246, 174, 45, 0.7);
+  box-shadow: 0 0 0 3px rgba(242, 100, 25, 0.12);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.message-thread-item-top,
+.message-thread-item-meta,
+.messages-thread-header,
+.messages-thread-actions,
+.messages-composer-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+}
+
+.messages-thread-actions-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.6rem;
+}
+
+.message-thread-item-top strong,
+.message-thread-item p,
+.message-thread-item-meta span,
+.message-thread-item-meta strong {
+  margin: 0;
+}
+
+.message-thread-item-top strong {
+  color: #fff7ef;
+  font-size: 1rem;
+}
+
+.message-thread-item-top span,
+.message-thread-item-meta span {
+  color: rgba(245, 240, 232, 0.64);
+  font-size: 0.76rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.message-thread-item p {
+  color: rgba(245, 240, 232, 0.8);
+  line-height: 1.5;
+}
+
+.message-thread-item-meta strong {
+  color: #ffd9b8;
+  font-size: 0.76rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.messages-thread {
+  display: grid;
+  gap: 1rem;
+}
+
+.messages-thread-header {
+  align-items: flex-start;
+}
+
+.messages-thread-header p {
+  margin: 0.4rem 0 0;
+  color: rgba(245, 240, 232, 0.72);
+}
+
+.messages-thread-actions {
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.messages-banner {
+  margin: 0;
+  padding: 0.8rem 0.95rem;
+  border-radius: 1rem;
+  border: 1px solid rgba(246, 174, 45, 0.25);
+  background: rgba(242, 100, 25, 0.12);
+  color: #ffe1c8;
+}
+
+.messages-banner.soft {
+  border-color: rgba(245, 240, 232, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(245, 240, 232, 0.78);
+}
+
+.messages-profile-form {
+  display: grid;
+  gap: 0.85rem;
+  padding: 1rem;
+  border: 1px solid rgba(245, 240, 232, 0.1);
+  border-radius: 1.2rem;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.messages-thread-body {
+  display: grid;
+  gap: 0.8rem;
+  padding: 1rem;
+  border: 1px solid rgba(245, 240, 232, 0.1);
+  border-radius: 1.2rem;
+  background: rgba(8, 13, 18, 0.35);
+  max-height: 34rem;
+  overflow: auto;
+}
+
+.message-thread-empty {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+}
+
+.messages-composer {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.messages-composer textarea {
+  min-height: 7.5rem;
+  resize: vertical;
+}
+
+.messages-composer-actions {
+  align-items: flex-end;
+}
+
+.messages-composer-note {
+  margin: 0;
+  color: rgba(245, 240, 232, 0.68);
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.status-pill.active {
+  background: rgba(246, 174, 45, 0.18);
+  color: #ffd9b8;
 }
 
 .calendar-grid-shell {
@@ -1146,6 +1393,60 @@
   backdrop-filter: blur(12px);
 }
 
+.dashboard-profile-card {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 1rem;
+}
+
+.dashboard-profile-header {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.dashboard-profile-note {
+  margin: 0;
+  color: rgba(245, 240, 232, 0.72);
+  line-height: 1.65;
+}
+
+.dashboard-profile-form {
+  display: grid;
+  gap: 1rem;
+}
+
+.dashboard-profile-form textarea {
+  width: 100%;
+  min-height: 9rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid rgba(245, 240, 232, 0.14);
+  border-radius: 1rem;
+  background: rgba(4, 7, 10, 0.55);
+  color: #fff7ef;
+  outline: none;
+  resize: vertical;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.dashboard-profile-form textarea:focus {
+  border-color: rgba(246, 174, 45, 0.8);
+  box-shadow: 0 0 0 4px rgba(242, 100, 25, 0.14);
+}
+
+.dashboard-profile-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  justify-content: space-between;
+  gap: 0.9rem;
+}
+
+.business-profile-success {
+  margin: 0;
+  color: #a6f0b3;
+  font-size: 0.92rem;
+}
+
 .hours-card {
   display: grid;
   gap: 1rem;
@@ -1321,7 +1622,9 @@
   .calendar-summary,
   .calendar-columns,
   .calendar-workspace,
-  .appointment-detail-grid {
+  .appointment-detail-grid,
+  .messages-summary,
+  .messages-workspace {
     grid-template-columns: 1fr;
   }
 
@@ -1338,6 +1641,11 @@
   .cta,
   .dashboard-topbar {
     flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .messages-thread-actions,
+  .messages-composer-actions {
     align-items: flex-start;
   }
 }
@@ -1383,6 +1691,13 @@
 
   .dashboard-tab {
     flex: 1 1 0;
+  }
+
+  .messages-thread-header,
+  .message-thread-item-top,
+  .message-thread-item-meta {
+    flex-direction: column;
+    align-items: flex-start;
   }
 
   .calendar-day,

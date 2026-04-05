@@ -3,6 +3,7 @@ using BusinessSchedulingApplication.Server.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 
 namespace BusinessSchedulingApplication.Server.Controllers;
 
@@ -21,8 +22,15 @@ public class SmsConversationsController : ControllerBase
     [HttpGet]
     public async Task<ActionResult<IEnumerable<SmsConversationDto>>> GetSmsConversations()
     {
+        var currentUserId = GetCurrentUserId();
+        var ownedCustomerIds = _context.Customers
+            .AsNoTracking()
+            .Where(customer => customer.OwnerUserId == currentUserId)
+            .Select(customer => customer.CustomerId);
+
         var conversations = await _context.SmsConversations
             .AsNoTracking()
+            .Where(conversation => ownedCustomerIds.Contains(conversation.CustomerId))
             .ToListAsync();
 
         return Ok(conversations.Select(MapToDto));
@@ -31,13 +39,30 @@ public class SmsConversationsController : ControllerBase
     [HttpGet("{id:guid}")]
     public async Task<ActionResult<SmsConversationDto>> GetSmsConversation(Guid id)
     {
-        var entity = await _context.SmsConversations.FindAsync(id);
+        var currentUserId = GetCurrentUserId();
+        var entity = await _context.SmsConversations
+            .AsNoTracking()
+            .FirstOrDefaultAsync(conversation =>
+                conversation.ConversationId == id &&
+                _context.Customers.Any(customer =>
+                    customer.CustomerId == conversation.CustomerId &&
+                    customer.OwnerUserId == currentUserId));
         return entity is null ? NotFound() : Ok(MapToDto(entity));
     }
 
     [HttpPost]
     public async Task<ActionResult<SmsConversationDto>> CreateSmsConversation(CreateSmsConversationDto dto)
     {
+        var currentUserId = GetCurrentUserId();
+        var canAccessCustomer = await _context.Customers.AnyAsync(customer =>
+            customer.CustomerId == dto.CustomerId &&
+            customer.OwnerUserId == currentUserId);
+
+        if (!canAccessCustomer)
+        {
+            return NotFound(new { message = "Selected customer is not owned by the current business owner." });
+        }
+
         var entity = new SmsConversation
         {
             ConversationId = dto.ConversationId ?? Guid.NewGuid(),
@@ -57,7 +82,13 @@ public class SmsConversationsController : ControllerBase
     [HttpPut("{id:guid}")]
     public async Task<IActionResult> UpdateSmsConversation(Guid id, UpdateSmsConversationDto dto)
     {
-        var entity = await _context.SmsConversations.FindAsync(id);
+        var currentUserId = GetCurrentUserId();
+        var entity = await _context.SmsConversations
+            .FirstOrDefaultAsync(conversation =>
+                conversation.ConversationId == id &&
+                _context.Customers.Any(customer =>
+                    customer.CustomerId == conversation.CustomerId &&
+                    customer.OwnerUserId == currentUserId));
         if (entity is null)
         {
             return NotFound();
@@ -75,7 +106,13 @@ public class SmsConversationsController : ControllerBase
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> DeleteSmsConversation(Guid id)
     {
-        var entity = await _context.SmsConversations.FindAsync(id);
+        var currentUserId = GetCurrentUserId();
+        var entity = await _context.SmsConversations
+            .FirstOrDefaultAsync(conversation =>
+                conversation.ConversationId == id &&
+                _context.Customers.Any(customer =>
+                    customer.CustomerId == conversation.CustomerId &&
+                    customer.OwnerUserId == currentUserId));
         if (entity is null)
         {
             return NotFound();
@@ -95,4 +132,15 @@ public class SmsConversationsController : ControllerBase
         CreatedAtUtc = conversation.CreatedAtUtc,
         UpdatedAtUtc = conversation.UpdatedAtUtc
     };
+
+    private Guid GetCurrentUserId()
+    {
+        var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!Guid.TryParse(userIdClaim, out var userId))
+        {
+            throw new InvalidOperationException("Authenticated user id is missing or invalid.");
+        }
+
+        return userId;
+    }
 }

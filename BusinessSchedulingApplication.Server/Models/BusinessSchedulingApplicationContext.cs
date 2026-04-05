@@ -21,8 +21,6 @@ public partial class BusinessSchedulingApplicationContext : DbContext
 
     public virtual DbSet<Customer> Customers { get; set; }
 
-    public virtual DbSet<CustomerOwner> CustomerOwners { get; set; }
-
     public virtual DbSet<BusinessHour> BusinessHours { get; set; }
 
     public virtual DbSet<SmsConversation> SmsConversations { get; set; }
@@ -48,6 +46,8 @@ public partial class BusinessSchedulingApplicationContext : DbContext
             entity.Property(e => e.IsActive).HasDefaultValue(true);
             entity.Property(e => e.PasswordHash).HasMaxLength(500);
             entity.Property(e => e.RoleName).HasMaxLength(50);
+            entity.Property(e => e.BusinessDescription).HasMaxLength(4000);
+            entity.Property(e => e.BotName).HasMaxLength(100);
             entity.Property(e => e.TimeZoneId).HasMaxLength(100).HasDefaultValue("UTC");
             entity.Property(e => e.UpdatedAtUtc).HasDefaultValueSql("(sysutcdatetime())");
         });
@@ -90,32 +90,13 @@ public partial class BusinessSchedulingApplicationContext : DbContext
                 .OnDelete(DeleteBehavior.ClientSetNull);
         });
 
-        modelBuilder.Entity<CustomerOwner>(entity =>
-        {
-            entity.HasIndex(e => e.CustomerId, "IX_CustomerOwners_CustomerId");
-
-            entity.HasIndex(e => e.OwnerUserId, "IX_CustomerOwners_OwnerUserId");
-
-            entity.HasIndex(e => new { e.CustomerId, e.OwnerUserId }, "IX_CustomerOwners_CustomerId_OwnerUserId").IsUnique();
-
-            entity.Property(e => e.CustomerOwnerId).ValueGeneratedNever();
-            entity.Property(e => e.CreatedAtUtc).HasDefaultValueSql("(sysutcdatetime())");
-            entity.Property(e => e.UpdatedAtUtc).HasDefaultValueSql("(sysutcdatetime())");
-
-            entity.HasOne(d => d.Customer).WithMany(p => p.CustomerOwners)
-                .HasForeignKey(d => d.CustomerId)
-                .OnDelete(DeleteBehavior.Cascade);
-
-            entity.HasOne(d => d.OwnerUser).WithMany(p => p.CustomerOwnerships)
-                .HasForeignKey(d => d.OwnerUserId)
-                .OnDelete(DeleteBehavior.Cascade);
-        });
-
         modelBuilder.Entity<Customer>(entity =>
         {
             entity.HasIndex(e => e.FullName, "IX_Customers_FullName");
 
-            entity.HasIndex(e => e.PhoneNumber, "IX_Customers_PhoneNumber").IsUnique();
+            entity.HasIndex(e => e.OwnerUserId, "IX_Customers_OwnerUserId");
+
+            entity.HasIndex(e => new { e.OwnerUserId, e.PhoneNumber }, "IX_Customers_OwnerUserId_PhoneNumber").IsUnique();
 
             entity.Property(e => e.CustomerId).ValueGeneratedNever();
             entity.Property(e => e.CreatedAtUtc).HasDefaultValueSql("(sysutcdatetime())");
@@ -123,6 +104,10 @@ public partial class BusinessSchedulingApplicationContext : DbContext
             entity.Property(e => e.FullName).HasMaxLength(200);
             entity.Property(e => e.PhoneNumber).HasMaxLength(30);
             entity.Property(e => e.UpdatedAtUtc).HasDefaultValueSql("(sysutcdatetime())");
+
+            entity.HasOne(d => d.OwnerUser).WithMany(p => p.Customers)
+                .HasForeignKey(d => d.OwnerUserId)
+                .OnDelete(DeleteBehavior.ClientSetNull);
         });
 
         modelBuilder.Entity<SmsConversation>(entity =>
