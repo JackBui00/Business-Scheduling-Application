@@ -27,6 +27,14 @@ namespace BusinessSchedulingApplication.Server.Migrations
                     b.Property<Guid>("UserId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<string>("BotName")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("BusinessDescription")
+                        .HasMaxLength(4000)
+                        .HasColumnType("nvarchar(4000)");
+
                     b.Property<DateTime>("CreatedAtUtc")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("datetime2")
@@ -196,6 +204,9 @@ namespace BusinessSchedulingApplication.Server.Migrations
                     b.Property<string>("Notes")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<Guid>("OwnerUserId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<string>("PhoneNumber")
                         .IsRequired()
                         .HasMaxLength(30)
@@ -210,7 +221,9 @@ namespace BusinessSchedulingApplication.Server.Migrations
 
                     b.HasIndex(new[] { "FullName" }, "IX_Customers_FullName");
 
-                    b.HasIndex(new[] { "PhoneNumber" }, "IX_Customers_PhoneNumber")
+                    b.HasIndex(new[] { "OwnerUserId" }, "IX_Customers_OwnerUserId");
+
+                    b.HasIndex(new[] { "OwnerUserId", "PhoneNumber" }, "IX_Customers_OwnerUserId_PhoneNumber")
                         .IsUnique();
 
                     b.ToTable("Customers");
@@ -320,6 +333,12 @@ namespace BusinessSchedulingApplication.Server.Migrations
 
             modelBuilder.Entity("BusinessSchedulingApplication.Server.Models.Customer", b =>
                 {
+                    b.HasOne("BusinessSchedulingApplication.Server.Models.AppUser", "OwnerUser")
+                        .WithMany("Customers")
+                        .HasForeignKey("OwnerUserId")
+                        .IsRequired();
+
+                    b.Navigation("OwnerUser");
                 });
 
             modelBuilder.Entity("BusinessSchedulingApplication.Server.Models.SmsConversation", b =>
@@ -355,7 +374,7 @@ namespace BusinessSchedulingApplication.Server.Migrations
 
                     b.Navigation("BusinessHours");
 
-                    b.Navigation("CustomerOwnerships");
+                    b.Navigation("Customers");
                 });
 
             modelBuilder.Entity("BusinessSchedulingApplication.Server.Models.Customer", b =>

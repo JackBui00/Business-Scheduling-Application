@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace BusinessSchedulingApplication.Server.Migrations
 {
     [DbContext(typeof(BusinessSchedulingApplicationContext))]
-    [Migration("20260405045849_AddAppUserTimeZoneId")]
-    partial class AddAppUserTimeZoneId
+    [Migration("20260405080123_AddBusinessDescriptionToAppUsers")]
+    partial class AddBusinessDescriptionToAppUsers
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -29,6 +29,10 @@ namespace BusinessSchedulingApplication.Server.Migrations
                 {
                     b.Property<Guid>("UserId")
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("BusinessDescription")
+                        .HasMaxLength(4000)
+                        .HasColumnType("nvarchar(4000)");
 
                     b.Property<DateTime>("CreatedAtUtc")
                         .ValueGeneratedOnAdd()
@@ -218,7 +222,7 @@ namespace BusinessSchedulingApplication.Server.Migrations
 
                     b.HasIndex(new[] { "OwnerUserId" }, "IX_Customers_OwnerUserId");
 
-                    b.HasIndex(new[] { "PhoneNumber" }, "IX_Customers_PhoneNumber")
+                    b.HasIndex(new[] { "OwnerUserId", "PhoneNumber" }, "IX_Customers_OwnerUserId_PhoneNumber")
                         .IsUnique();
 
                     b.ToTable("Customers");

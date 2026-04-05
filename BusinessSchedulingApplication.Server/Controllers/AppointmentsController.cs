@@ -23,10 +23,10 @@ public class AppointmentsController : ControllerBase
     public async Task<ActionResult<IEnumerable<AppointmentDto>>> GetAppointments()
     {
         var currentUserId = GetCurrentUserId();
-        var ownedCustomerIds = _context.CustomerOwners
+        var ownedCustomerIds = _context.Customers
             .AsNoTracking()
-            .Where(customerOwner => customerOwner.OwnerUserId == currentUserId)
-            .Select(customerOwner => customerOwner.CustomerId);
+            .Where(customer => customer.OwnerUserId == currentUserId)
+            .Select(customer => customer.CustomerId);
 
         var appointments = await _context.Appointments
             .AsNoTracking()
@@ -41,10 +41,10 @@ public class AppointmentsController : ControllerBase
     public async Task<ActionResult<AppointmentDto>> GetAppointment(Guid id)
     {
         var currentUserId = GetCurrentUserId();
-        var ownedCustomerIds = _context.CustomerOwners
+        var ownedCustomerIds = _context.Customers
             .AsNoTracking()
-            .Where(customerOwner => customerOwner.OwnerUserId == currentUserId)
-            .Select(customerOwner => customerOwner.CustomerId);
+            .Where(customer => customer.OwnerUserId == currentUserId)
+            .Select(customer => customer.CustomerId);
 
         var entity = await _context.Appointments
             .AsNoTracking()
@@ -58,14 +58,10 @@ public class AppointmentsController : ControllerBase
     {
         var currentUserId = GetCurrentUserId();
         var currentUser = await _context.AppUsers.AsNoTracking().FirstAsync(user => user.UserId == currentUserId);
-        var ownedCustomerIds = _context.CustomerOwners
-            .AsNoTracking()
-            .Where(customerOwner => customerOwner.OwnerUserId == currentUserId)
-            .Select(customerOwner => customerOwner.CustomerId);
 
         var ownedCustomer = await _context.Customers
             .AsNoTracking()
-            .FirstOrDefaultAsync(customer => customer.CustomerId == dto.CustomerId && ownedCustomerIds.Contains(customer.CustomerId));
+            .FirstOrDefaultAsync(customer => customer.CustomerId == dto.CustomerId && customer.OwnerUserId == currentUserId);
 
         if (ownedCustomer is null)
         {
@@ -106,14 +102,10 @@ public class AppointmentsController : ControllerBase
     {
         var currentUserId = GetCurrentUserId();
         var currentUser = await _context.AppUsers.AsNoTracking().FirstAsync(user => user.UserId == currentUserId);
-        var ownedCustomerIds = _context.CustomerOwners
-            .AsNoTracking()
-            .Where(customerOwner => customerOwner.OwnerUserId == currentUserId)
-            .Select(customerOwner => customerOwner.CustomerId);
 
         var entity = await _context.Appointments
             .Include(appointment => appointment.Customer)
-            .FirstOrDefaultAsync(appointment => appointment.AppointmentId == id && ownedCustomerIds.Contains(appointment.CustomerId));
+            .FirstOrDefaultAsync(appointment => appointment.AppointmentId == id && appointment.Customer.OwnerUserId == currentUserId);
         if (entity is null)
         {
             return NotFound();
@@ -121,7 +113,7 @@ public class AppointmentsController : ControllerBase
 
         var ownedCustomer = await _context.Customers
             .AsNoTracking()
-            .FirstOrDefaultAsync(customer => customer.CustomerId == dto.CustomerId && ownedCustomerIds.Contains(customer.CustomerId));
+            .FirstOrDefaultAsync(customer => customer.CustomerId == dto.CustomerId && customer.OwnerUserId == currentUserId);
 
         if (ownedCustomer is null)
         {
@@ -153,14 +145,10 @@ public class AppointmentsController : ControllerBase
     public async Task<IActionResult> DeleteAppointment(Guid id)
     {
         var currentUserId = GetCurrentUserId();
-        var ownedCustomerIds = _context.CustomerOwners
-            .AsNoTracking()
-            .Where(customerOwner => customerOwner.OwnerUserId == currentUserId)
-            .Select(customerOwner => customerOwner.CustomerId);
 
         var entity = await _context.Appointments
             .Include(appointment => appointment.Customer)
-            .FirstOrDefaultAsync(appointment => appointment.AppointmentId == id && ownedCustomerIds.Contains(appointment.CustomerId));
+            .FirstOrDefaultAsync(appointment => appointment.AppointmentId == id && appointment.Customer.OwnerUserId == currentUserId);
         if (entity is null)
         {
             return NotFound();

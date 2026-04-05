@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace BusinessSchedulingApplication.Server.Migrations
 {
     [DbContext(typeof(BusinessSchedulingApplicationContext))]
-    [Migration("20260405044027_AddCustomerOwnerUserId")]
-    partial class AddCustomerOwnerUserId
+    [Migration("20260405070404_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -62,6 +62,13 @@ namespace BusinessSchedulingApplication.Server.Migrations
                         .IsRequired()
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("TimeZoneId")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasDefaultValue("UTC");
 
                     b.Property<DateTime>("UpdatedAtUtc")
                         .ValueGeneratedOnAdd()
@@ -130,6 +137,46 @@ namespace BusinessSchedulingApplication.Server.Migrations
                     b.ToTable("Appointments");
                 });
 
+            modelBuilder.Entity("BusinessSchedulingApplication.Server.Models.BusinessHour", b =>
+                {
+                    b.Property<Guid>("BusinessHourId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<TimeOnly?>("ClosesAtUtc")
+                        .HasColumnType("time");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("(sysutcdatetime())");
+
+                    b.Property<int>("DayOfWeek")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsOpen")
+                        .HasColumnType("bit");
+
+                    b.Property<TimeOnly?>("OpensAtUtc")
+                        .HasColumnType("time");
+
+                    b.Property<Guid>("OwnerUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("(sysutcdatetime())");
+
+                    b.HasKey("BusinessHourId");
+
+                    b.HasIndex(new[] { "OwnerUserId" }, "IX_BusinessHours_OwnerUserId");
+
+                    b.HasIndex(new[] { "OwnerUserId", "DayOfWeek" }, "IX_BusinessHours_OwnerUserId_DayOfWeek")
+                        .IsUnique();
+
+                    b.ToTable("BusinessHours");
+                });
+
             modelBuilder.Entity("BusinessSchedulingApplication.Server.Models.Customer", b =>
                 {
                     b.Property<Guid>("CustomerId")
@@ -171,7 +218,7 @@ namespace BusinessSchedulingApplication.Server.Migrations
 
                     b.HasIndex(new[] { "OwnerUserId" }, "IX_Customers_OwnerUserId");
 
-                    b.HasIndex(new[] { "PhoneNumber" }, "IX_Customers_PhoneNumber")
+                    b.HasIndex(new[] { "OwnerUserId", "PhoneNumber" }, "IX_Customers_OwnerUserId_PhoneNumber")
                         .IsUnique();
 
                     b.ToTable("Customers");
@@ -269,6 +316,16 @@ namespace BusinessSchedulingApplication.Server.Migrations
                     b.Navigation("Customer");
                 });
 
+            modelBuilder.Entity("BusinessSchedulingApplication.Server.Models.BusinessHour", b =>
+                {
+                    b.HasOne("BusinessSchedulingApplication.Server.Models.AppUser", "OwnerUser")
+                        .WithMany("BusinessHours")
+                        .HasForeignKey("OwnerUserId")
+                        .IsRequired();
+
+                    b.Navigation("OwnerUser");
+                });
+
             modelBuilder.Entity("BusinessSchedulingApplication.Server.Models.Customer", b =>
                 {
                     b.HasOne("BusinessSchedulingApplication.Server.Models.AppUser", "OwnerUser")
@@ -309,6 +366,8 @@ namespace BusinessSchedulingApplication.Server.Migrations
             modelBuilder.Entity("BusinessSchedulingApplication.Server.Models.AppUser", b =>
                 {
                     b.Navigation("Appointments");
+
+                    b.Navigation("BusinessHours");
 
                     b.Navigation("Customers");
                 });

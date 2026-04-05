@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace BusinessSchedulingApplication.Server.Migrations
 {
     [DbContext(typeof(BusinessSchedulingApplicationContext))]
-    [Migration("20260405045522_AddBusinessHours")]
-    partial class AddBusinessHours
+    [Migration("20260405080836_AddBotNameToAppUsers")]
+    partial class AddBotNameToAppUsers
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -29,6 +29,14 @@ namespace BusinessSchedulingApplication.Server.Migrations
                 {
                     b.Property<Guid>("UserId")
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("BotName")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("BusinessDescription")
+                        .HasMaxLength(4000)
+                        .HasColumnType("nvarchar(4000)");
 
                     b.Property<DateTime>("CreatedAtUtc")
                         .ValueGeneratedOnAdd()
@@ -62,6 +70,13 @@ namespace BusinessSchedulingApplication.Server.Migrations
                         .IsRequired()
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("TimeZoneId")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasDefaultValue("UTC");
 
                     b.Property<DateTime>("UpdatedAtUtc")
                         .ValueGeneratedOnAdd()
@@ -211,7 +226,7 @@ namespace BusinessSchedulingApplication.Server.Migrations
 
                     b.HasIndex(new[] { "OwnerUserId" }, "IX_Customers_OwnerUserId");
 
-                    b.HasIndex(new[] { "PhoneNumber" }, "IX_Customers_PhoneNumber")
+                    b.HasIndex(new[] { "OwnerUserId", "PhoneNumber" }, "IX_Customers_OwnerUserId_PhoneNumber")
                         .IsUnique();
 
                     b.ToTable("Customers");

@@ -7,6 +7,8 @@ public partial class Customer
 {
     public Guid CustomerId { get; set; }
 
+    public Guid OwnerUserId { get; set; }
+
     public string FullName { get; set; } = null!;
 
     public string PhoneNumber { get; set; } = null!;
@@ -19,11 +21,11 @@ public partial class Customer
 
     public DateTime UpdatedAtUtc { get; set; }
 
-    public virtual ICollection<CustomerOwner> CustomerOwners { get; set; } = new List<CustomerOwner>();
-
     public virtual ICollection<Appointment> Appointments { get; set; } = new List<Appointment>();
 
     public virtual SmsConversation? SmsConversation { get; set; }
 
     public virtual ICollection<SmsMessage> SmsMessages { get; set; } = new List<SmsMessage>();
+
+    public virtual AppUser OwnerUser { get; set; } = null!;
 }

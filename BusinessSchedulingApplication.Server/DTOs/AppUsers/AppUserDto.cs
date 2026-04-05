@@ -10,6 +10,10 @@ public sealed class AppUserDto
 
     public string RoleName { get; set; } = null!;
 
+    public string? BusinessDescription { get; set; }
+
+    public string? BotName { get; set; }
+
     public bool IsActive { get; set; }
 
     public DateTime? LastLoginAtUtc { get; set; }

@@ -5,25 +5,24 @@
 namespace BusinessSchedulingApplication.Server.Migrations
 {
     /// <inheritdoc />
-    public partial class AddAppUserTimeZoneId : Migration
+    public partial class AddBusinessDescriptionToAppUsers : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.AddColumn<string>(
-                name: "TimeZoneId",
+                name: "BusinessDescription",
                 table: "AppUsers",
-                type: "nvarchar(100)",
-                maxLength: 100,
-                nullable: false,
-                defaultValue: "UTC");
+                type: "nvarchar(4000)",
+                maxLength: 4000,
+                nullable: true);
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropColumn(
-                name: "TimeZoneId",
+                name: "BusinessDescription",
                 table: "AppUsers");
         }
     }

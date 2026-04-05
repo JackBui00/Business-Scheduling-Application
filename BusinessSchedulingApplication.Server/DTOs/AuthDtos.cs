@@ -34,6 +34,15 @@ public sealed class SignUpRequestDto
     public string TimeZoneId { get; set; } = null!;
 }
 
+public sealed class UpdateBusinessProfileDto
+{
+    [StringLength(4000)]
+    public string? BusinessDescription { get; set; }
+
+    [StringLength(100)]
+    public string? BotName { get; set; }
+}
+
 public sealed class AuthSessionDto
 {
     public Guid UserId { get; set; }
@@ -43,6 +52,10 @@ public sealed class AuthSessionDto
     public string DisplayName { get; set; } = null!;
 
     public string RoleName { get; set; } = null!;
+
+    public string? BusinessDescription { get; set; }
+
+    public string? BotName { get; set; }
 
     public bool IsActive { get; set; }
 
