@@ -7,4 +7,6 @@ public sealed class TwilioOptions
     public string? AuthToken { get; set; }
 
     public string? FromNumber { get; set; }
+
+    public string? OwnerUserId { get; set; }
 }

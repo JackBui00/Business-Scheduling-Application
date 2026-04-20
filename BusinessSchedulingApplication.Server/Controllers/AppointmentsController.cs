@@ -1,5 +1,6 @@
 using BusinessSchedulingApplication.Server.DTOs;
 using BusinessSchedulingApplication.Server.Models;
+using BusinessSchedulingApplication.Server.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -13,10 +14,14 @@ namespace BusinessSchedulingApplication.Server.Controllers;
 public class AppointmentsController : ControllerBase
 {
     private readonly BusinessSchedulingApplicationContext _context;
+    private readonly BusinessHoursValidationService _businessHoursValidationService;
 
-    public AppointmentsController(BusinessSchedulingApplicationContext context)
+    public AppointmentsController(
+        BusinessSchedulingApplicationContext context,
+        BusinessHoursValidationService businessHoursValidationService)
     {
         _context = context;
+        _businessHoursValidationService = businessHoursValidationService;
     }
 
     [HttpGet]
@@ -68,10 +73,24 @@ public class AppointmentsController : ControllerBase
             return BadRequest(new { message = "Selected customer is not owned by the current business owner." });
         }
 
-        var hoursCheck = await IsWithinBusinessHoursAsync(currentUserId, currentUser.TimeZoneId, dto.ScheduledAtUtc, dto.DurationMinutes);
+        var hoursCheck = await _businessHoursValidationService.IsWithinBusinessHoursAsync(
+            currentUserId,
+            currentUser.TimeZoneId,
+            dto.ScheduledAtUtc,
+            dto.DurationMinutes);
         if (!hoursCheck.IsAllowed)
         {
             return BadRequest(new { message = hoursCheck.Message });
+        }
+
+        var availabilityCheck = await _businessHoursValidationService.IsAvailableAsync(
+            currentUserId,
+            currentUser.TimeZoneId,
+            dto.ScheduledAtUtc,
+            dto.DurationMinutes);
+        if (!availabilityCheck.IsAllowed)
+        {
+            return BadRequest(new { message = availabilityCheck.Message });
         }
 
         var entity = new Appointment
@@ -120,10 +139,25 @@ public class AppointmentsController : ControllerBase
             return BadRequest(new { message = "Selected customer is not owned by the current business owner." });
         }
 
-        var hoursCheck = await IsWithinBusinessHoursAsync(currentUserId, currentUser.TimeZoneId, dto.ScheduledAtUtc, dto.DurationMinutes);
+        var hoursCheck = await _businessHoursValidationService.IsWithinBusinessHoursAsync(
+            currentUserId,
+            currentUser.TimeZoneId,
+            dto.ScheduledAtUtc,
+            dto.DurationMinutes);
         if (!hoursCheck.IsAllowed)
         {
             return BadRequest(new { message = hoursCheck.Message });
+        }
+
+        var availabilityCheck = await _businessHoursValidationService.IsAvailableAsync(
+            currentUserId,
+            currentUser.TimeZoneId,
+            dto.ScheduledAtUtc,
+            dto.DurationMinutes,
+            id);
+        if (!availabilityCheck.IsAllowed)
+        {
+            return BadRequest(new { message = availabilityCheck.Message });
         }
 
         entity.CustomerId = dto.CustomerId;
@@ -174,102 +208,6 @@ public class AppointmentsController : ControllerBase
         CreatedAtUtc = appointment.CreatedAtUtc,
         UpdatedAtUtc = appointment.UpdatedAtUtc
     };
-
-    private async Task<(bool IsAllowed, string Message)> IsWithinBusinessHoursAsync(
-        Guid ownerUserId,
-        string timeZoneId,
-        DateTime scheduledAtUtc,
-        int durationMinutes)
-    {
-        var rows = await _context.BusinessHours
-            .AsNoTracking()
-            .Where(row => row.OwnerUserId == ownerUserId)
-            .ToListAsync();
-
-        if (rows.Count == 0)
-        {
-            return (true, string.Empty);
-        }
-
-        var timeZone = ResolveTimeZoneInfo(timeZoneId);
-        if (timeZone is null)
-        {
-            return (false, "Business hours time zone is invalid.");
-        }
-
-        var localScheduledAt = TimeZoneInfo.ConvertTimeFromUtc(scheduledAtUtc.ToUniversalTime(), timeZone);
-        var localEndAt = localScheduledAt.AddMinutes(durationMinutes);
-        var start = TimeOnly.FromDateTime(localScheduledAt);
-        var end = TimeOnly.FromDateTime(localEndAt);
-        var dayOfWeek = (int)localScheduledAt.DayOfWeek;
-
-        var row = rows.FirstOrDefault(item => item.DayOfWeek == dayOfWeek);
-        if (row is null || !row.IsOpen || row.OpensAtUtc is null || row.ClosesAtUtc is null)
-        {
-            return (false, "That appointment time is outside the configured business hours.");
-        }
-
-        if (end <= start)
-        {
-            return (false, "Appointments must end after they start.");
-        }
-
-        if (start < row.OpensAtUtc || end > row.ClosesAtUtc)
-        {
-            return (false, "That appointment time is outside the configured business hours.");
-        }
-
-        return (true, string.Empty);
-    }
-
-    private static TimeZoneInfo? ResolveTimeZoneInfo(string? timeZoneId)
-    {
-        if (string.IsNullOrWhiteSpace(timeZoneId))
-        {
-            return null;
-        }
-
-        try
-        {
-            return TimeZoneInfo.FindSystemTimeZoneById(timeZoneId);
-        }
-        catch (TimeZoneNotFoundException)
-        {
-        }
-        catch (InvalidTimeZoneException)
-        {
-        }
-
-        if (TimeZoneInfo.TryConvertIanaIdToWindowsId(timeZoneId, out var windowsId))
-        {
-            try
-            {
-                return TimeZoneInfo.FindSystemTimeZoneById(windowsId);
-            }
-            catch (TimeZoneNotFoundException)
-            {
-            }
-            catch (InvalidTimeZoneException)
-            {
-            }
-        }
-
-        if (TimeZoneInfo.TryConvertWindowsIdToIanaId(timeZoneId, out var ianaId))
-        {
-            try
-            {
-                return TimeZoneInfo.FindSystemTimeZoneById(ianaId);
-            }
-            catch (TimeZoneNotFoundException)
-            {
-            }
-            catch (InvalidTimeZoneException)
-            {
-            }
-        }
-
-        return null;
-    }
 
     private Guid GetCurrentUserId()
     {

@@ -3,6 +3,7 @@ import type { Dispatch, FormEvent, SetStateAction } from 'react';
 import type {
   AppointmentSummary,
   AuthSession,
+  BotReplyResult,
   BusinessHoursSchedule,
   CalendarView,
   ConversationThread,
@@ -52,6 +53,7 @@ export function DashboardWorkspace(props: DashboardWorkspaceProps) {
   const [sendingNewConversation, setSendingNewConversation] = useState(false);
   const [isNewConversationComposerOpen, setIsNewConversationComposerOpen] = useState(false);
   const [sendingReply, setSendingReply] = useState(false);
+  const [sendingBotReply, setSendingBotReply] = useState(false);
   const [isEditingCustomerProfile, setIsEditingCustomerProfile] = useState(false);
   const [customerProfileDraft, setCustomerProfileDraft] = useState<CustomerProfileDraft>({
     fullName: '',
@@ -171,6 +173,7 @@ export function DashboardWorkspace(props: DashboardWorkspaceProps) {
       });
       setNewConversationDraft('');
       setSendingNewConversation(false);
+      setSendingBotReply(false);
       setIsNewConversationComposerOpen(false);
       setIsEditingCustomerProfile(false);
       setSavingCustomerProfile(false);
@@ -267,6 +270,7 @@ export function DashboardWorkspace(props: DashboardWorkspaceProps) {
           notes: '',
         });
         setNewConversationDraft('');
+        setSendingBotReply(false);
         setIsNewConversationComposerOpen(false);
         setIsEditingCustomerProfile(false);
         setSavingCustomerProfile(false);
@@ -669,6 +673,83 @@ export function DashboardWorkspace(props: DashboardWorkspaceProps) {
     }
   }
 
+  async function handleGenerateBotReply() {
+    if (!selectedConversation) {
+      setMessagesError('Select a conversation first.');
+      return;
+    }
+
+    if (isConversationTakenOver) {
+      setMessagesError('Release the takeover before letting the bot answer.');
+      return;
+    }
+
+    setSendingBotReply(true);
+    setMessagesError(null);
+
+    try {
+      const response = await fetch('/api/smsmessages/bot-reply', {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          conversationId: selectedConversation.conversationId,
+        }),
+      });
+
+      const data = (await response.json().catch(() => null)) as BotReplyResult | { message?: string } | null;
+      if (!response.ok) {
+        throw new Error(data && 'message' in data ? data.message ?? 'Unable to generate a bot reply right now.' : 'Unable to generate a bot reply right now.');
+      }
+
+      const result = data as BotReplyResult;
+      setMessages((current) => [...current, result.message]);
+      setConversations((current) =>
+        current.map((conversation) =>
+          conversation.conversationId === selectedConversation.conversationId
+            ? {
+                ...conversation,
+                lastMessageAtUtc: result.message.sentAtUtc,
+                unreadCount: 0,
+                updatedAtUtc: result.message.sentAtUtc,
+              }
+            : conversation,
+        ),
+      );
+      setMetrics((current) =>
+        current
+          ? {
+              ...current,
+              messages: current.messages + 1,
+              appointments: result.appointment ? current.appointments + 1 : current.appointments,
+            }
+          : current,
+      );
+
+      if (result.appointment) {
+        setAppointments((current) => {
+          const existingIndex = current.findIndex((appointment) => appointment.appointmentId === result.appointment?.appointmentId);
+
+          if (existingIndex >= 0) {
+            return current.map((appointment) =>
+              appointment.appointmentId === result.appointment?.appointmentId ? result.appointment! : appointment,
+            );
+          }
+
+          return [result.appointment!, ...current];
+        });
+      }
+
+      setTakeoverNotice(`Bot replied to ${selectedConversation.customerName}.`);
+    } catch (sendError) {
+      setMessagesError(sendError instanceof Error ? sendError.message : 'Unable to generate a bot reply right now.');
+    } finally {
+      setSendingBotReply(false);
+    }
+  }
+
   async function handleBusinessHoursSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSavingBusinessHours(true);
@@ -873,7 +954,9 @@ export function DashboardWorkspace(props: DashboardWorkspaceProps) {
           onStartConversation={handleStartConversation}
           onSaveCustomerProfile={handleSaveCustomerProfile}
           onTakeoverConversation={handleTakeoverConversation}
+          onGenerateBotReply={handleGenerateBotReply}
           onSendReply={handleSendReply}
+          sendingBotReply={sendingBotReply}
         />
       ) : (
         <BusinessHoursTab

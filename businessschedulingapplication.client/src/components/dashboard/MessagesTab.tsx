@@ -43,7 +43,9 @@ type MessagesTabProps = {
   onStartConversation: (event: FormEvent<HTMLFormElement>) => void;
   onSaveCustomerProfile: (event: FormEvent<HTMLFormElement>) => void;
   onTakeoverConversation: () => void;
+  onGenerateBotReply: () => void;
   onSendReply: (event: FormEvent<HTMLFormElement>) => void;
+  sendingBotReply: boolean;
 };
 
 export function MessagesTab(props: MessagesTabProps) {
@@ -233,6 +235,14 @@ export function MessagesTab(props: MessagesTabProps) {
                     </button>
                     <button type="button" className="secondary-btn" onClick={props.onTakeoverConversation}>
                       Take over
+                    </button>
+                    <button
+                      type="button"
+                      className="primary-btn"
+                      onClick={props.onGenerateBotReply}
+                      disabled={props.sendingBotReply || props.isConversationTakenOver}
+                    >
+                      {props.sendingBotReply ? 'Bot replying...' : 'Bot reply'}
                     </button>
                   </div>
                 </div>

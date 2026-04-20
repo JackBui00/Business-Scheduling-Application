@@ -1,5 +1,6 @@
 using BusinessSchedulingApplication.Server.Models;
 using BusinessSchedulingApplication.Server.Options;
+using BusinessSchedulingApplication.Server.Services;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.EntityFrameworkCore;
 
@@ -15,6 +16,7 @@ if (builder.Environment.IsDevelopment())
 builder.Services.AddControllers();
 builder.Services.AddHttpClient();
 builder.Services.Configure<TwilioOptions>(builder.Configuration.GetSection("Twilio"));
+builder.Services.Configure<OpenAiOptions>(builder.Configuration.GetSection("OpenAI"));
 builder.Services.AddDbContext<BusinessSchedulingApplicationContext>(options =>
 {
     var connectionString = builder.Configuration.GetConnectionString("BusinessSchedulingApplicationContext")
@@ -44,8 +46,11 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
                 return Task.CompletedTask;
             }
         };
-    });
+});
 builder.Services.AddAuthorization();
+builder.Services.AddScoped<BusinessHoursValidationService>();
+builder.Services.AddScoped<OpenAiConversationBotService>();
+builder.Services.AddScoped<SmsBotReplyPlannerService>();
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 
