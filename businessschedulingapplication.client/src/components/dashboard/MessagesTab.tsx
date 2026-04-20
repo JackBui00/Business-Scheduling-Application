@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import type { Dispatch, FormEvent, SetStateAction } from 'react';
 import type { ConversationThread, CustomerProfileDraft } from '../../types';
 import { formatConversationTimestamp } from '../../lib/date';
@@ -14,6 +15,8 @@ type MessagesTabProps = {
   customerProfileMessage: string | null;
   replyDraft: string;
   setReplyDraft: Dispatch<SetStateAction<string>>;
+  simulatedInboundDraft: string;
+  setSimulatedInboundDraft: Dispatch<SetStateAction<string>>;
   newCustomerForm: {
     fullName: string;
     phoneNumber: string;
@@ -45,11 +48,22 @@ type MessagesTabProps = {
   onTakeoverConversation: () => void;
   onGenerateBotReply: () => void;
   onSendReply: (event: FormEvent<HTMLFormElement>) => void;
+  onSimulateInboundMessage: (event: FormEvent<HTMLFormElement>) => void;
   sendingBotReply: boolean;
+  simulatingInboundMessage: boolean;
 };
 
 export function MessagesTab(props: MessagesTabProps) {
   const selectedThread = props.selectedConversation;
+  const threadBodyRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!threadBodyRef.current || !selectedThread) {
+      return;
+    }
+
+    threadBodyRef.current.scrollTop = threadBodyRef.current.scrollHeight;
+  }, [selectedThread?.conversationId, selectedThread?.threadMessages.length]);
 
   return (
     <div className="messages-panel dashboard-tab-panel">
@@ -334,7 +348,7 @@ export function MessagesTab(props: MessagesTabProps) {
                 </p>
               ) : null}
 
-              <div className="messages-thread-body">
+              <div className="messages-thread-body" ref={threadBodyRef}>
                 {selectedThread.threadMessages.length > 0 ? (
                   selectedThread.threadMessages.map((message) => (
                     <article
@@ -355,6 +369,28 @@ export function MessagesTab(props: MessagesTabProps) {
                   </div>
                 )}
               </div>
+
+              <form className="messages-composer" onSubmit={props.onSimulateInboundMessage}>
+                <label className="field">
+                  <span>Simulate customer message (test mode)</span>
+                  <textarea
+                    value={props.simulatedInboundDraft}
+                    onChange={(event) => props.setSimulatedInboundDraft(event.target.value)}
+                    placeholder="Write what the customer would text from their phone..."
+                    rows={3}
+                    disabled={props.simulatingInboundMessage}
+                  />
+                </label>
+
+                <div className="messages-composer-actions">
+                  <p className="messages-composer-note">
+                    This simulates a real inbound Twilio webhook and can trigger automatic bot replies.
+                  </p>
+                  <button className="secondary-btn" type="submit" disabled={props.simulatingInboundMessage}>
+                    {props.simulatingInboundMessage ? 'Simulating...' : 'Simulate inbound SMS'}
+                  </button>
+                </div>
+              </form>
 
               <form className="messages-composer" onSubmit={props.onSendReply}>
                 <label className="field">

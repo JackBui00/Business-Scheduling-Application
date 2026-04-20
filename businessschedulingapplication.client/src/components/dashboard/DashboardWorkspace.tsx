@@ -54,6 +54,8 @@ export function DashboardWorkspace(props: DashboardWorkspaceProps) {
   const [isNewConversationComposerOpen, setIsNewConversationComposerOpen] = useState(false);
   const [sendingReply, setSendingReply] = useState(false);
   const [sendingBotReply, setSendingBotReply] = useState(false);
+  const [simulatedInboundDraft, setSimulatedInboundDraft] = useState('');
+  const [simulatingInboundMessage, setSimulatingInboundMessage] = useState(false);
   const [isEditingCustomerProfile, setIsEditingCustomerProfile] = useState(false);
   const [customerProfileDraft, setCustomerProfileDraft] = useState<CustomerProfileDraft>({
     fullName: '',
@@ -174,6 +176,8 @@ export function DashboardWorkspace(props: DashboardWorkspaceProps) {
       setNewConversationDraft('');
       setSendingNewConversation(false);
       setSendingBotReply(false);
+      setSimulatedInboundDraft('');
+      setSimulatingInboundMessage(false);
       setIsNewConversationComposerOpen(false);
       setIsEditingCustomerProfile(false);
       setSavingCustomerProfile(false);
@@ -271,6 +275,8 @@ export function DashboardWorkspace(props: DashboardWorkspaceProps) {
         });
         setNewConversationDraft('');
         setSendingBotReply(false);
+        setSimulatedInboundDraft('');
+        setSimulatingInboundMessage(false);
         setIsNewConversationComposerOpen(false);
         setIsEditingCustomerProfile(false);
         setSavingCustomerProfile(false);
@@ -701,7 +707,11 @@ export function DashboardWorkspace(props: DashboardWorkspaceProps) {
 
       const data = (await response.json().catch(() => null)) as BotReplyResult | { message?: string } | null;
       if (!response.ok) {
-        throw new Error(data && 'message' in data ? data.message ?? 'Unable to generate a bot reply right now.' : 'Unable to generate a bot reply right now.');
+        const errorMessage =
+          data && typeof data === 'object' && 'message' in data && typeof data.message === 'string'
+            ? data.message
+            : 'Unable to generate a bot reply right now.';
+        throw new Error(errorMessage);
       }
 
       const result = data as BotReplyResult;
@@ -747,6 +757,140 @@ export function DashboardWorkspace(props: DashboardWorkspaceProps) {
       setMessagesError(sendError instanceof Error ? sendError.message : 'Unable to generate a bot reply right now.');
     } finally {
       setSendingBotReply(false);
+    }
+  }
+
+  async function handleSimulateInboundMessage(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!selectedConversation) {
+      setMessagesError('Select a conversation first.');
+      return;
+    }
+
+    const customerPhone = selectedConversation.customerPhoneNumber.trim();
+    if (!customerPhone) {
+      setMessagesError('This conversation does not have a customer phone number yet.');
+      return;
+    }
+
+    const trimmedDraft = simulatedInboundDraft.trim();
+    if (!trimmedDraft) {
+      setMessagesError('Write a simulated customer message first.');
+      return;
+    }
+
+    setSimulatingInboundMessage(true);
+    setMessagesError(null);
+
+    const optimisticMessageId = `simulated-${Date.now()}`;
+    const optimisticSentAtUtc = new Date().toISOString();
+    const optimisticInboundMessage: SmsMessageSummary = {
+      smsMessageId: optimisticMessageId,
+      conversationId: selectedConversation.conversationId,
+      customerId: selectedConversation.customerId,
+      direction: 'inbound',
+      messageBody: trimmedDraft,
+      deliveryStatus: 'received',
+      sentAtUtc: optimisticSentAtUtc,
+      createdAtUtc: optimisticSentAtUtc,
+    };
+
+    setMessages((current) => [...current, optimisticInboundMessage]);
+    setConversations((current) =>
+      current.map((conversation) =>
+        conversation.conversationId === selectedConversation.conversationId
+          ? {
+              ...conversation,
+              lastMessageAtUtc: optimisticSentAtUtc,
+              unreadCount: 1,
+              updatedAtUtc: optimisticSentAtUtc,
+            }
+          : conversation,
+      ),
+    );
+    setMetrics((current) =>
+      current
+        ? {
+            ...current,
+            messages: current.messages + 1,
+          }
+        : current,
+    );
+    setSimulatedInboundDraft('');
+    setTakeoverNotice(`Simulated inbound SMS received from ${selectedConversation.customerName}.`);
+
+    try {
+      const formBody = new URLSearchParams();
+      formBody.set('From', customerPhone);
+      formBody.set('Body', trimmedDraft);
+      formBody.set('To', 'SIMULATED');
+
+      const webhookResponse = await fetch('/api/twilio/sms', {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: formBody.toString(),
+      });
+
+      if (!webhookResponse.ok) {
+        throw new Error('Unable to simulate inbound SMS right now.');
+      }
+
+      const [messagesResponse, conversationsResponse, appointmentsResponse] = await Promise.all([
+        fetch('/api/smsmessages', { credentials: 'include' }),
+        fetch('/api/smsconversations', { credentials: 'include' }),
+        fetch('/api/appointments', { credentials: 'include' }),
+      ]);
+
+      if (!messagesResponse.ok || !conversationsResponse.ok || !appointmentsResponse.ok) {
+        throw new Error('Inbound message was simulated, but reloading message data failed.');
+      }
+
+      const [messageRows, conversationRows, appointmentRows] = (await Promise.all([
+        messagesResponse.json(),
+        conversationsResponse.json(),
+        appointmentsResponse.json(),
+      ])) as [SmsMessageSummary[], SmsConversationSummary[], AppointmentSummary[]];
+
+      setMessages(messageRows);
+      setConversations(conversationRows);
+      setAppointments(appointmentRows);
+      setMetrics((current) =>
+        current
+          ? {
+              ...current,
+              conversations: conversationRows.length,
+              messages: messageRows.length,
+              appointments: appointmentRows.length,
+            }
+          : current,
+      );
+    } catch (simulateError) {
+      setMessages((current) => current.filter((message) => message.smsMessageId !== optimisticMessageId));
+      setConversations((current) =>
+        current.map((conversation) =>
+          conversation.conversationId === selectedConversation.conversationId
+            ? {
+                ...conversation,
+                unreadCount: Math.max(0, conversation.unreadCount - 1),
+              }
+            : conversation,
+        ),
+      );
+      setMetrics((current) =>
+        current
+          ? {
+              ...current,
+              messages: Math.max(0, current.messages - 1),
+            }
+          : current,
+      );
+      setMessagesError(simulateError instanceof Error ? simulateError.message : 'Unable to simulate inbound SMS right now.');
+    } finally {
+      setSimulatingInboundMessage(false);
     }
   }
 
@@ -937,6 +1081,8 @@ export function DashboardWorkspace(props: DashboardWorkspaceProps) {
           customerProfileMessage={customerProfileMessage}
           replyDraft={messageDraft}
           setReplyDraft={setMessageDraft}
+          simulatedInboundDraft={simulatedInboundDraft}
+          setSimulatedInboundDraft={setSimulatedInboundDraft}
           newCustomerForm={newCustomerForm}
           setNewCustomerForm={setNewCustomerForm}
           newConversationDraft={newConversationDraft}
@@ -956,7 +1102,9 @@ export function DashboardWorkspace(props: DashboardWorkspaceProps) {
           onTakeoverConversation={handleTakeoverConversation}
           onGenerateBotReply={handleGenerateBotReply}
           onSendReply={handleSendReply}
+          onSimulateInboundMessage={handleSimulateInboundMessage}
           sendingBotReply={sendingBotReply}
+          simulatingInboundMessage={simulatingInboundMessage}
         />
       ) : (
         <BusinessHoursTab

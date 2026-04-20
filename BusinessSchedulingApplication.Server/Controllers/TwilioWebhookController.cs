@@ -42,7 +42,7 @@ public class TwilioWebhookController : ControllerBase
         }
 
         var ownerUserId = await ResolveOwnerUserIdAsync();
-        var now = DateTime.UtcNow;
+        var inboundReceivedAtUtc = DateTime.UtcNow;
 
         var customer = (await _context.Customers
                 .Where(customer => customer.OwnerUserId == ownerUserId)
@@ -60,8 +60,8 @@ public class TwilioWebhookController : ControllerBase
                 PhoneNumber = fromPhone,
                 Email = null,
                 Notes = "Auto-created from inbound SMS.",
-                CreatedAtUtc = now,
-                UpdatedAtUtc = now
+                CreatedAtUtc = inboundReceivedAtUtc,
+                UpdatedAtUtc = inboundReceivedAtUtc
             };
 
             _context.Customers.Add(customer);
@@ -72,7 +72,7 @@ public class TwilioWebhookController : ControllerBase
             if (!string.IsNullOrWhiteSpace(extractedName) && LooksLikePlaceholderName(customer.FullName))
             {
                 customer.FullName = extractedName;
-                customer.UpdatedAtUtc = now;
+                customer.UpdatedAtUtc = inboundReceivedAtUtc;
             }
         }
 
@@ -83,10 +83,10 @@ public class TwilioWebhookController : ControllerBase
             {
                 ConversationId = Guid.NewGuid(),
                 CustomerId = customer.CustomerId,
-                LastMessageAtUtc = now,
+                LastMessageAtUtc = inboundReceivedAtUtc,
                 UnreadCount = 0,
-                CreatedAtUtc = now,
-                UpdatedAtUtc = now
+                CreatedAtUtc = inboundReceivedAtUtc,
+                UpdatedAtUtc = inboundReceivedAtUtc
             };
 
             _context.SmsConversations.Add(conversation);
@@ -100,21 +100,23 @@ public class TwilioWebhookController : ControllerBase
             Direction = "inbound",
             MessageBody = messageBody,
             DeliveryStatus = "received",
-            SentAtUtc = now,
-            CreatedAtUtc = now
+            SentAtUtc = inboundReceivedAtUtc,
+            CreatedAtUtc = inboundReceivedAtUtc
         };
 
         _context.SmsMessages.Add(inboundMessage);
-        conversation.LastMessageAtUtc = now;
+        conversation.LastMessageAtUtc = inboundReceivedAtUtc;
         conversation.UnreadCount = 1;
-        conversation.UpdatedAtUtc = now;
-        customer.UpdatedAtUtc = now;
+        conversation.UpdatedAtUtc = inboundReceivedAtUtc;
+        customer.UpdatedAtUtc = inboundReceivedAtUtc;
 
         await _context.SaveChangesAsync();
 
         PlannedBotReply? plannedReply = null;
         try
         {
+            // Simulate a short, human-like pause before the bot responds.
+            await Task.Delay(TimeSpan.FromSeconds(5));
             plannedReply = await _botReplyPlannerService.PlanReplyAsync(ownerUserId, conversation.ConversationId, isNewCustomer);
         }
         catch
@@ -123,6 +125,8 @@ public class TwilioWebhookController : ControllerBase
 
         if (plannedReply is not null)
         {
+            var outboundSentAtUtc = DateTime.UtcNow;
+
             var outboundMessage = new SmsMessage
             {
                 SmsMessageId = Guid.NewGuid(),
@@ -131,13 +135,14 @@ public class TwilioWebhookController : ControllerBase
                 Direction = "outbound",
                 MessageBody = plannedReply.ReplyText,
                 DeliveryStatus = "sent",
-                SentAtUtc = now,
-                CreatedAtUtc = now
+                SentAtUtc = outboundSentAtUtc,
+                CreatedAtUtc = outboundSentAtUtc
             };
 
             _context.SmsMessages.Add(outboundMessage);
-            conversation.LastMessageAtUtc = now;
+            conversation.LastMessageAtUtc = outboundSentAtUtc;
             conversation.UnreadCount = 0;
+            conversation.UpdatedAtUtc = outboundSentAtUtc;
 
             if (plannedReply.Appointment is not null)
             {
@@ -152,8 +157,8 @@ public class TwilioWebhookController : ControllerBase
                     Notes = plannedReply.Appointment.Notes,
                     CreatedVia = "bot",
                     CreatedByUserId = ownerUserId,
-                    CreatedAtUtc = now,
-                    UpdatedAtUtc = now
+                    CreatedAtUtc = outboundSentAtUtc,
+                    UpdatedAtUtc = outboundSentAtUtc
                 });
             }
 
