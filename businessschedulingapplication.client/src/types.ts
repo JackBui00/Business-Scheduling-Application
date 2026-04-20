@@ -52,6 +52,13 @@ export type AppointmentSummary = {
   updatedAtUtc: string;
 };
 
+export type BotAppointmentDraft = {
+  scheduledAtLocal: string;
+  durationMinutes: number;
+  serviceName: string;
+  notes: string | null;
+};
+
 export type CustomerSummary = {
   customerId: string;
   fullName: string;
@@ -95,4 +102,9 @@ export type ConversationThread = SmsConversationSummary & {
   customerPhoneNumber: string;
   threadMessages: SmsMessageSummary[];
   latestMessage: SmsMessageSummary | null;
+};
+
+export type BotReplyResult = {
+  message: SmsMessageSummary;
+  appointment: AppointmentSummary | null;
 };
